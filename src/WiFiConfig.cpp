@@ -23,15 +23,18 @@ int WiFiConfig::begin() {
     int wiFiStatus = 0;
 
     pinMode(configPin, INPUT);
+
+
     if ((digitalRead(configPin) == HIGH) || (ssidStr.length() == 0)) { // check if config switch is set or EEPROM empty
         Serial.println("Setting up AP");
         setupAP();
         wiFiStatus = 1;     // so the correct message can be displayed
     } else {
         Serial.println("Connecting to WiFi");
-        connectToWiFi();
-        wiFiStatus = 0;     // so the correct message can be displayed
+        wiFiStatus = connectToWiFi();
+        // wiFiStatus = 0;     // so the correct message can be displayed
     }
+
     return wiFiStatus;
 }
 
@@ -51,7 +54,7 @@ void WiFiConfig::setupAP() {
     server.begin();
 }
 
-void WiFiConfig::connectToWiFi() {
+int WiFiConfig::connectToWiFi() {
     WiFi.disconnect();                                      // Reset WiFi settings
     WiFi.setTxPower(WIFI_POWER_8_5dBm);
     WiFi.mode(WIFI_STA);
@@ -90,11 +93,12 @@ void WiFiConfig::connectToWiFi() {
     //     Serial.println("Connecting to WiFi...");
     // }
     // Serial.println("Connected to WiFi");
+    return WiFiConStatus;
 }
 
 void WiFiConfig::handleRoot(AsyncWebServerRequest* request) {
     // debug
-    Serial.println("enter handle root");
+    Serial.println("Yngve - dags att jobba!!!   enter handle root");
     String html = "<html><body><h1>Configure WiFi</h1>";
     html += "<b1>Teknosofen</b1>";
     html += "<form method='POST' action='/save'>";

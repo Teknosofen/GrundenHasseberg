@@ -41,7 +41,7 @@ private:
     #define WL_DISCONNECTED     6
 
     void setupAP();
-    void connectToWiFi();
+    int connectToWiFi();
     void handleRoot(AsyncWebServerRequest* request);
     void handleSave(AsyncWebServerRequest* request);
     String scanNetworks(int maxMsPerChan = 100, int channel = 1); // Default values provided 

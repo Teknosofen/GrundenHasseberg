@@ -31,7 +31,7 @@
 #define RELAY_OFF HIGH  // So we use HIGH to turn them off
 
 // Create an instance of the MQTTHandler class
-#define myMqttServer "192.168.1.147"                        // My MQTT broker IP
+#define myMqttServer "hasseberg.ddns.net" // "192.168.1.147"                        // My MQTT broker URL/IP
 // const char* myMqttServer = "192.168.1.147";              // My MQTT broker IP
 #define myMqttPort   1883                                   // Default MQTT port
 // const int   myMqttPort   = 1883;                         // Default MQTT port

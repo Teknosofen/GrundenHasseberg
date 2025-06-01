@@ -88,11 +88,11 @@ void setup() {
   lcd_PushColors(0, 0, LCD_WIDTH, LCD_HEIGHT, (uint16_t *)sprite.getPointer());
   delay(3000);
 
-  while (bme.begin() != BME::eStatusOK) {
-    Serial.println("bme begin failed");
-    printLastOperateStatus(bme.lastOperateStatus);
-    delay(1000);
-  }
+  // while (bme.begin() != BME::eStatusOK) {
+  //   Serial.println("bme begin failed");
+  //   printLastOperateStatus(bme.lastOperateStatus);
+  //   delay(1000);
+  // }
   Serial.println("bme begin success");
   delay(200);
 
@@ -115,6 +115,10 @@ void setup() {
     mqttHandler.begin();
     displayManager.updateMQTTStatus(mqttHandler);
     displayManager.renderMQTTStatus();
+    //2025-06-01
+    displayManager.render();
+    Serial.printf("WiFi Status: %d\n", wiFiStatus);
+
 
     // Initialize the clock
     myClock.begin();
