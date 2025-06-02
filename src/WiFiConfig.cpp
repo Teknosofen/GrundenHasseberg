@@ -259,7 +259,7 @@ String WiFiConfig::getMySelectedSSID() {
 }
 
 String WiFiConfig::getMySelectedIP() {
-    return WiFi.localIP().toString();
+    return WiFi.localIP().toString(); // This also works, but the above gives a more detailed output
 }
 
 String WiFiConfig::getMyAPIP() {

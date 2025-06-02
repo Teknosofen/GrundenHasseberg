@@ -54,11 +54,11 @@ OTAHandler otaHandler;
 
 void printLastOperateStatus(BME::eStatus_t eStatus) {
   switch(eStatus) {
-  case BME::eStatusOK: Serial.println("everything ok"); break;
-  case BME::eStatusErr: Serial.println("unknown error"); break;
-  case BME::eStatusErrDeviceNotDetected: Serial.println("device not detected"); break;
-  case BME::eStatusErrParameter: Serial.println("parameter error"); break;
-  default: Serial.println("unknown status"); break;
+    case BME::eStatusOK: Serial.println("everything ok"); break;
+    case BME::eStatusErr: Serial.println("unknown error"); break;
+    case BME::eStatusErrDeviceNotDetected: Serial.println("device not detected"); break;
+    case BME::eStatusErrParameter: Serial.println("parameter error"); break;
+    default: Serial.println("unknown status"); break;
   }
 }
 
@@ -88,37 +88,36 @@ void setup() {
   lcd_PushColors(0, 0, LCD_WIDTH, LCD_HEIGHT, (uint16_t *)sprite.getPointer());
   delay(3000);
 
-  // while (bme.begin() != BME::eStatusOK) {
-  //   Serial.println("bme begin failed");
-  //   printLastOperateStatus(bme.lastOperateStatus);
-  //   delay(1000);
-  // }
+  while (bme.begin() != BME::eStatusOK) {
+    Serial.println("bme begin failed");
+    printLastOperateStatus(bme.lastOperateStatus);
+    delay(1000);
+  }
+  // Serial.printf("BME status: %d", bme.begin());
   Serial.println("bme begin success");
-  delay(200);
+  // delay(200);
 
   displayManager.begin();
-  displayManager.renderHeader();
+  // displayManager.renderHeader();
 
-  int wiFiStatus = wifiConfig.begin(); // Start WiFi configuration
-  // make the begin return if it starts as AP or STA
+  int wiFiStatus = wifiConfig.begin(); // Start WiFi configuration, make the begin return if it starts as AP or STA
 
   displayManager.updateWiFiStatus(wiFiStatus, wifiConfig);
-  displayManager.renderWiFi();
+  // displayManager.renderWiFi();
   if (wiFiStatus == 1) { // If in AP mode
     displayManager.updateActionInfo();
-    displayManager.renderActionInfo();
+    // displayManager.renderActionInfo();
   }
   else if( wiFiStatus != 1 ) { // If not in AP mode     // not in AP mode, Start MQTT
     displayManager.updateWiFiStatus(wiFiStatus, wifiConfig);
-    displayManager.renderWiFi();
+    // displayManager.renderWiFi();
     mqttHandler.checkAndInitializeEEPROM(); // Check and initialize EEPROM
     mqttHandler.begin();
     displayManager.updateMQTTStatus(mqttHandler);
-    displayManager.renderMQTTStatus();
+    // displayManager.renderMQTTStatus();
     //2025-06-01
     displayManager.render();
     Serial.printf("WiFi Status: %d\n", wiFiStatus);
-
 
     // Initialize the clock
     myClock.begin();
@@ -132,9 +131,7 @@ void setup() {
 }
 
 void loop() {
-  otaHandler.handle();
- // do a loop that checks if a certain time has eapsed since last time and does not use the %/&%¤%&delay()
-
+otaHandler.handle();
 static int lastLoopTime = 0;
 
 if (millis() - lastLoopTime > SET_LOOP_TIME) {
@@ -148,48 +145,48 @@ if (millis() - lastLoopTime > SET_LOOP_TIME) {
     } else if (wifiStatus == 1) {
         Serial.printf("AP Mode - SSID: %s, IP: %s\n", wifiConfig.getMyAPSSID(), wifiConfig.getMyAPIP());
     } else if (wifiStatus == 2) {
-        Serial.printf("Connected to %s, IP: %s\n", wifiConfig.getMySelectedSSID(), wifiConfig.getMySelectedIP());
+        Serial.printf("Connected to %s, IP: %s\n", wifiConfig.getMySelectedSSID().c_str(), wifiConfig.getMySelectedIP().c_str());
     }
 
     displayManager.updateWiFiStatus(wifiStatus, wifiConfig);
     displayManager.updateMQTTStatus(mqttHandler);
 
-    float temp = bme.getTemperature();
+    float temp  = bme.getTemperature();
     float press = bme.getPressure() / 100.0;
-    float humi = bme.getHumidity();
+    float humi  = bme.getHumidity();
     displayManager.updateSensorData(temp, press, humi);
-
-    mqttHandler.loop();
-    displayManager.updateMQTTStatus(mqttHandler);
-
-    bool heaterOn = heaterController.controlHeater(temp);
-    bool dryerOn = dryingController.controlDryer(humi);
-    displayManager.updateControllerStatus(heaterOn, dryerOn);
-
-    mqttHandler.publish(mqttHandler.tempTopic, String(temp).c_str());
-    mqttHandler.publish(mqttHandler.rhTopic, String(humi).c_str());
-    mqttHandler.publish(mqttHandler.pBaroTopic, String(press).c_str());
 
     Serial.printf("temp: %.1f [C], P: %.1f [kPa], RH: %.1f[%%]\n", temp, press, humi);
     
     heaterController.controlHeater(temp);         // Do the heat and drying controll:
     dryingController.controlDryer(humi);
 
-    mqttHandler.loop();
+    mqttHandler.loop(); // check connection, reconnect if needed
+    displayManager.updateMQTTStatus(mqttHandler);
 
-    char heatStat[5], dryerStat[5];
-    sprintf(heatStat, "%d", heaterController.isHeaterOn());
-    sprintf(dryerStat, "%d", dryingController.isDryerOn());
-    // String heatStat = heaterController.isHeaterOn()? "Heater: ON" : "Heater: OFF";
-    // String dryerStat = dryingController.isDryerOn()? "Dryer: ON " : "Dryer: OFF ";
-    // mqttHandler.publish("Grunden/Temp", tempStr);              // Publish temperature (Celsius)
-    // mqttHandler.publish("Grunden/RH", humiStr);                  // Publish relative humidity (%)
-    // mqttHandler.publish("Grunden/Pbaro", pressStr);             // Publish atmospheric pressure (hPa)
-    mqttHandler.publish(mqttHandler.heaterStatusTopic, heatStat);        // Publish heater status
-    mqttHandler.publish(mqttHandler.dehumidifierStatusTopic, dryerStat); // Publish dehumidifier status
+    bool heaterOn = heaterController.controlHeater(temp);
+    bool dryerOn = dryingController.controlDryer(humi);
+    displayManager.updateControllerStatus(heaterOn, dryerOn);
 
+    if(mqttHandler.isConnected()) {
+  
+      mqttHandler.publish(mqttHandler.tempTopic, String(temp).c_str());
+      mqttHandler.publish(mqttHandler.rhTopic, String(humi).c_str());
+      mqttHandler.publish(mqttHandler.pBaroTopic, String(press).c_str());
+      
+      char heatStat[5], dryerStat[5];
+      sprintf(heatStat, "%d", heaterController.isHeaterOn());
+      sprintf(dryerStat, "%d", dryingController.isDryerOn());
+      // String heatStat = heaterController.isHeaterOn()? "Heater: ON" : "Heater: OFF";
+      // String dryerStat = dryingController.isDryerOn()? "Dryer: ON " : "Dryer: OFF ";
+      // mqttHandler.publish("Grunden/Temp", tempStr);              // Publish temperature (Celsius)
+      // mqttHandler.publish("Grunden/RH", humiStr);                  // Publish relative humidity (%)
+      // mqttHandler.publish("Grunden/Pbaro", pressStr);             // Publish atmospheric pressure (hPa)
+      mqttHandler.publish(mqttHandler.heaterStatusTopic, heatStat);        // Publish heater status
+      mqttHandler.publish(mqttHandler.dehumidifierStatusTopic, dryerStat); // Publish dehumidifier status
+
+    }
+    // mqttHandler.loop();
     displayManager.render();
-
   } 
-  // delay(5000);
 }

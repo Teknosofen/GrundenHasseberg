@@ -22,13 +22,14 @@
 #define INITIAL_SETRH 70.0
 #define INITIAL_SETRHHYSTERESIS 2.0
 
-#define HEATER_RELAY   1
-#define DRYER_RELAY    2
-#define HOTWATER_RELAY 3
-#define SPARE_RELAY    10
+#define HEATER_RELAY   1                // GPIO pin for the heater relay
+// #define DRYING_RELAY  2 // GPIO pin for the drying relay
+#define DRYER_RELAY    2                // GPIO pin for the drying relay
+#define HOTWATER_RELAY 3                // GPIO pin for the hot water relay
+#define SPARE_RELAY    10               // GPIO pin for the spare relay
 
-#define RELAY_ON LOW    // Relays are active low
-#define RELAY_OFF HIGH  // So we use HIGH to turn them off
+#define RELAY_ON LOW                    // Relays are active low
+#define RELAY_OFF HIGH                  // So we use HIGH to turn them off
 
 // Create an instance of the MQTTHandler class
 #define myMqttServer "hasseberg.ddns.net" // "192.168.1.147"                        // My MQTT broker URL/IP

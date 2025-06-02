@@ -33,9 +33,9 @@ bool MQTTHandler::isConnected() {
 
 // Function to reconnect to the MQTT broker if disconnected
 void MQTTHandler::reconnect() {
-    while (!client.connected()) {
-        Serial.print("Attempting MQTT connection...");
-        // Attempt to connect with a client ID
+    // while (!client.connected()) {
+    //     Serial.print("Attempting MQTT connection...");
+    //     // Attempt to connect with a client ID
         if (client.connect("Hasseberg", mqttUser.c_str(), mqttPW.c_str())) {
             Serial.println("connected");
             // Subscribe to the required topics
@@ -52,12 +52,12 @@ void MQTTHandler::reconnect() {
             client.subscribe(setDryerStatus);
 
         } else {
-            Serial.print("failed, rc=");
+            Serial.print("MQTT connection failed, rc=");
             Serial.print(client.state());
-            Serial.println(" try again in 5 seconds");
-            delay(5000);
+            Serial.println(" try again next loop"); // in 5 seconds");
+            // delay(5000);
         }
-    }
+    // }
 }
 
 // Function to handle incoming MQTT messages
@@ -257,10 +257,10 @@ void MQTTHandler::readSettingsFromEEPROM() {
         int heaterStatus = EEPROM.readInt(heaterStatusAddress);
         int dryerStatus = EEPROM.readInt(dryerStatusAddress);
 // Debug
-Serial.printf("tempSetting: %f\n", temp);
-Serial.printf("RHSetting: %f\n", rh);
-Serial.printf("tempHyst: %f\n", tempHyst);
-Serial.printf("RH Hyst: %f\n", rhHyst);
+Serial.printf("tempSetting: %.1f [C]\n", temp);
+Serial.printf("RHSetting: %.1f [%%]\n", rh);
+Serial.printf("tempHyst: %.1f [C]\n", tempHyst);
+Serial.printf("RH Hyst: %.1f [%%]\n", rhHyst);
 Serial.printf("Heater status: %d\n", heaterStatus);
 Serial.printf("Dryer status: %d\n", dryerStatus);
 
