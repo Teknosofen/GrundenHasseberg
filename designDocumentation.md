@@ -491,13 +491,15 @@ PlatformIO does not auto-discover OTA targets through a GUI port picker. The upl
 
 In VS Code, click the environment name in the **bottom status bar** to switch between `usb` and `ota`, then click the Upload (right-arrow) button.
 
-The OTA environment uses `upload_port = HassebergsGrund.local` (mDNS hostname). If mDNS is unreliable on your router, edit `platformio.ini` and replace the hostname with the device's IP address (shown on the display and in the Serial monitor output):
+The OTA environment uses a static IP address as `upload_port`. The device's IP is shown on the display (WiFi status line) and in the Serial monitor output. Update `platformio.ini` whenever the IP changes (e.g. after a router reboot assigns a new address):
 
 ```ini
 [env:ota]
 upload_protocol = espota
 upload_port     = 192.168.x.x
 ```
+
+> **Note on mDNS (`.local` hostnames):** Although the device advertises itself as `HassebergsGrund.local`, this name resolution is unreliable on Windows for Python-based tools like espota. Use the IP address directly.
 
 **What to expect during upload**
 

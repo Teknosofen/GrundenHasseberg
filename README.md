@@ -45,6 +45,8 @@ pio run -e ota -t upload
 
 In VS Code, switch between `usb` and `ota` by clicking the environment name in the bottom status bar, then click the Upload arrow.
 
+> Set `upload_port` in `[env:ota]` to the device's IP address (visible on the display). mDNS hostnames (`.local`) are unreliable on Windows with espota.
+
 Serial monitor at 115 200 baud:
 ```bash
 pio device monitor
