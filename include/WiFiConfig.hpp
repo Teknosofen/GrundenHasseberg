@@ -15,6 +15,7 @@ public:
     String  getMyAPSSID();
     bool    getMyWiFiStatus();
     uint8_t getMyWiFiConStatus(); // 0 = no connection, 1 = AP, 2 = STA
+    bool    tryReconnect();       // Attempt WiFi reconnection; returns true if connected
     
 private:
     int configPin;

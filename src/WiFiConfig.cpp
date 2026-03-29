@@ -271,5 +271,20 @@ String WiFiConfig::getMyAPSSID() {
 }
 
 uint8_t WiFiConfig::getMyWiFiConStatus() {
- return WiFiConStatus;
+    // Keep cached status in sync with actual WiFi state
+    if (WiFiConStatus == 2 && WiFi.status() != WL_CONNECTED) {
+        WiFiConStatus = 0;
+        Serial.println("WiFi connection lost (detected in status check)");
+    }
+    return WiFiConStatus;
+}
+
+bool WiFiConfig::tryReconnect() {
+    if (WiFiConStatus == 1) return false; // AP mode - no reconnection needed
+    if (WiFi.status() == WL_CONNECTED) {
+        WiFiConStatus = 2;
+        return true;
+    }
+    Serial.println("WiFi lost - attempting reconnect...");
+    return (connectToWiFi() == 2);
 }

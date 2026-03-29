@@ -7,6 +7,7 @@ class OTAHandler {
 public:
     void begin();
     void handle();
+    void restart();  // Re-initialise OTA service after a WiFi reconnection
 };
 
 #endif // OTAHANDLER_HPP

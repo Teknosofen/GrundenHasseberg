@@ -31,11 +31,14 @@ public:
     String getMQTTPort();
 
     bool isConnected(void);
+    unsigned long getUptimeSeconds(); // seconds since last MQTT connect; 0 if disconnected
 
     // Function to check and initialize EEPROM
     void checkAndInitializeEEPROM();
 
     // MQTT topics for publishing data
+    const char* statusTopic = "Grund/status"; // "online" / "offline" (LWT)
+    const char* uptimeTopic = "Grund/uptime"; // MQTT uptime in seconds
     const char* ackTopic = "Grund/ack";
     const char* tempTopic = "Grund/temp";
     const char* rhTopic = "Grund/RH";
@@ -66,6 +69,8 @@ private:
 	#define TEMP_HYSTERESIS_MAX 10.0
 	#define RH_HYSTERESIS_MIN 1.0
 	#define RH_HYSTERESIS_MAX 20.0
+
+    unsigned long connectedAt = 0; // millis() when last MQTT connect succeeded
 
     String mqttUser = "Teknosofen";
     String mqttPW   = "HassebergsGrund2025";

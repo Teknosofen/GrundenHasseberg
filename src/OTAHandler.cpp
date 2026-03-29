@@ -36,3 +36,8 @@ void OTAHandler::begin() {
 void OTAHandler::handle() {
     ArduinoOTA.handle();
 }
+
+void OTAHandler::restart() {
+    Serial.println("OTA: restarting service after WiFi reconnection");
+    ArduinoOTA.begin();
+}

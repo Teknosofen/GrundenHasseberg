@@ -31,13 +31,22 @@ bool MQTTHandler::isConnected() {
     return client.connected();
 }
 
+unsigned long MQTTHandler::getUptimeSeconds() {
+    if (!client.connected() || connectedAt == 0) return 0;
+    return (millis() - connectedAt) / 1000;
+}
+
 // Function to reconnect to the MQTT broker if disconnected
 void MQTTHandler::reconnect() {
     // while (!client.connected()) {
     //     Serial.print("Attempting MQTT connection...");
     //     // Attempt to connect with a client ID
-        if (client.connect("Hasseberg", mqttUser.c_str(), mqttPW.c_str())) {
-            Serial.println("connected");
+        // Connect with LWT: broker publishes "offline" to Grund/status if we drop
+        if (client.connect("Hasseberg", mqttUser.c_str(), mqttPW.c_str(),
+                           statusTopic, 0, true, "offline")) {
+            connectedAt = millis();
+            Serial.println("MQTT connected");
+            client.publish(statusTopic, "online", true); // retained — new subscribers see current state
             // Subscribe to the required topics
             client.subscribe(setTempTopic);
             client.subscribe(setRHTopic);

@@ -132,20 +132,51 @@ void setup() {
 
 void loop() {
 otaHandler.handle();
-static int lastLoopTime = 0;
+static unsigned long lastLoopTime = 0;
+static unsigned long lastReconnectAttempt = 0;
+static unsigned long wifiConnectedSince = 0; // millis() when WiFi last came up
+static unsigned long wifiLostAt = 0;         // millis() when WiFi loss was first detected
+
+// WiFi reconnection: attempt every 60s when connection is lost (STA mode only)
+if (wifiConfig.getMyWiFiConStatus() != 1 &&
+    WiFi.status() != WL_CONNECTED &&
+    millis() - lastReconnectAttempt > 60000UL) {
+    lastReconnectAttempt = millis();
+    if (wifiLostAt == 0) wifiLostAt = millis(); // record first moment of detected loss
+    Serial.println("WiFi disconnected - attempting reconnect...");
+    bool reconnected = wifiConfig.tryReconnect();
+    if (reconnected) {
+        unsigned long downSecs = (millis() - wifiLostAt) / 1000;
+        wifiConnectedSince = millis();
+        wifiLostAt = 0;
+        Serial.printf("WiFi reconnected! Down for %lu s. SSID: %s  IP: %s\n",
+            downSecs,
+            wifiConfig.getMySelectedSSID().c_str(),
+            wifiConfig.getMySelectedIP().c_str());
+        otaHandler.restart();
+        mqttHandler.loop(); // reconnect MQTT immediately, don't wait for next 10 s cycle
+    } else {
+        Serial.printf("WiFi reconnect failed (down %lu s) - will retry in 60 s\n",
+            (millis() - wifiLostAt) / 1000);
+    }
+}
 
 if (millis() - lastLoopTime > SET_LOOP_TIME) {
   lastLoopTime = millis();
 
     // Check WiFi status
-    // this ought to be a function in the WiFiConfig class...
     int wifiStatus = wifiConfig.getMyWiFiConStatus();
     if (wifiStatus == 0) {
-        Serial.println("No Connection");
+        Serial.println("WiFi: No Connection");
     } else if (wifiStatus == 1) {
-        Serial.printf("AP Mode - SSID: %s, IP: %s\n", wifiConfig.getMyAPSSID(), wifiConfig.getMyAPIP());
+        Serial.printf("WiFi: AP Mode  SSID: %s  IP: %s\n", wifiConfig.getMyAPSSID(), wifiConfig.getMyAPIP());
     } else if (wifiStatus == 2) {
-        Serial.printf("Connected to %s, IP: %s\n", wifiConfig.getMySelectedSSID().c_str(), wifiConfig.getMySelectedIP().c_str());
+        if (wifiConnectedSince == 0) wifiConnectedSince = millis(); // capture boot connection time
+        unsigned long ws = (millis() - wifiConnectedSince) / 1000;
+        Serial.printf("WiFi: %s  IP: %s  uptime: %luh%02lum%02lus\n",
+            wifiConfig.getMySelectedSSID().c_str(),
+            wifiConfig.getMySelectedIP().c_str(),
+            ws / 3600, (ws % 3600) / 60, ws % 60);
     }
 
     displayManager.updateWiFiStatus(wifiStatus, wifiConfig);
@@ -169,21 +200,22 @@ if (millis() - lastLoopTime > SET_LOOP_TIME) {
     displayManager.updateControllerStatus(heaterOn, dryerOn);
 
     if(mqttHandler.isConnected()) {
-  
+
+      unsigned long ms = mqttHandler.getUptimeSeconds();
+      Serial.printf("MQTT: %s  uptime: %luh%02lum%02lus\n",
+          mqttHandler.getMQTTIP().c_str(),
+          ms / 3600, (ms % 3600) / 60, ms % 60);
+
       mqttHandler.publish(mqttHandler.tempTopic, String(temp).c_str());
       mqttHandler.publish(mqttHandler.rhTopic, String(humi).c_str());
       mqttHandler.publish(mqttHandler.pBaroTopic, String(press).c_str());
-      
+      mqttHandler.publish(mqttHandler.uptimeTopic, String(ms).c_str());
+
       char heatStat[5], dryerStat[5];
       sprintf(heatStat, "%d", heaterController.isHeaterOn());
       sprintf(dryerStat, "%d", dryingController.isDryerOn());
-      // String heatStat = heaterController.isHeaterOn()? "Heater: ON" : "Heater: OFF";
-      // String dryerStat = dryingController.isDryerOn()? "Dryer: ON " : "Dryer: OFF ";
-      // mqttHandler.publish("Grunden/Temp", tempStr);              // Publish temperature (Celsius)
-      // mqttHandler.publish("Grunden/RH", humiStr);                  // Publish relative humidity (%)
-      // mqttHandler.publish("Grunden/Pbaro", pressStr);             // Publish atmospheric pressure (hPa)
-      mqttHandler.publish(mqttHandler.heaterStatusTopic, heatStat);        // Publish heater status
-      mqttHandler.publish(mqttHandler.dehumidifierStatusTopic, dryerStat); // Publish dehumidifier status
+      mqttHandler.publish(mqttHandler.heaterStatusTopic, heatStat);
+      mqttHandler.publish(mqttHandler.dehumidifierStatusTopic, dryerStat);
 
     }
     // mqttHandler.loop();
