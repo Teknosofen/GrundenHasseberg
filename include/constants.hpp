@@ -19,7 +19,7 @@
 #define INITIAL_SETTEMP 5.0
 #define INITIAL_SETTEMPHYSTERESIS 1.0
 
-#define INITIAL_SETRH 70.0
+#define INITIAL_SETRH 85.0
 #define INITIAL_SETRHHYSTERESIS 2.0
 
 #define HEATER_RELAY   1                // GPIO pin for the heater relay
@@ -42,6 +42,14 @@
 // WIFI CFG
 // const int WiFiconfigPin = 15;
 #define WiFiconfigPin 15
+#define WIFI_TX_POWER WIFI_POWER_19_5dBm  // max power — important for remote/weak-signal location
+
+// NTP
+#define NTP_SERVER "pool.ntp.org"
+#define TZ_INFO    "CET-1CEST,M3.5.0,M10.5.0/3"  // Central European Time with DST (Sweden)
+
+// Watchdog
+#define WDT_TIMEOUT_SEC 30
 
 // Temp and humidity setup
 #define SEA_LEVEL_PRESSURE 1013.0f

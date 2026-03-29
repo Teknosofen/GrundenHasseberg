@@ -261,6 +261,7 @@ On successful reconnection all 11 subscriptions are re-registered automatically.
 | `Grund/pbaro` | Barometric pressure in hPa | No | Every 10 s |
 | `Grund/heatStatus` | `1` = heater on, `0` = off | No | Every 10 s |
 | `Grund/dehumidStatus` | `1` = dryer on, `0` = off | No | Every 10 s |
+| `Grund/error` | Fault description string | No | On sensor fault |
 | `Grund/ack` | Acknowledgment text for received commands | No | On command receipt |
 
 ### 6.5 Device Availability — Last Will and Testament (LWT)
@@ -443,17 +444,21 @@ loop()  [runs at MCU speed, no blocking]
         ├── displayManager.updateWiFiStatus()    update display buffer
         ├── displayManager.updateMQTTStatus()    update display buffer
         │
-        ├── bme.getTemperature()                 read sensor
-        ├── bme.getPressure()                    read sensor
-        ├── bme.getHumidity()                    read sensor
-        ├── displayManager.updateSensorData()    update display buffer
+        ├── bme.getTemperature/Pressure/Humidity()   read sensor
+        ├── sensorOk = (lastOperateStatus==OK) && !isnan(T) && !isnan(RH)
+        ├── displayManager.updateSensorData()         update display buffer
         │
-        ├── heaterController.controlHeater(T)    evaluate & drive relay
-        ├── dryingController.controlDryer(RH)    evaluate & drive relay
+        ├── mqttHandler.loop()                        reconnect if needed + client.loop()
+        ├── displayManager.updateMQTTStatus()
+        │
+        ├── if sensorOk:
+        │     ├── heaterController.controlHeater(T)   evaluate & drive relay
+        │     └── dryingController.controlDryer(RH)   evaluate & drive relay
+        ├── if !sensorOk:
+        │     ├── controlHeater(999°C) → relay OFF     fail-safe
+        │     ├── controlDryer(0%) → relay OFF         fail-safe
+        │     └── publish Grund/error "BME280 sensor failure"
         ├── displayManager.updateControllerStatus()
-        │
-        ├── mqttHandler.loop()                   reconnect if needed + client.loop()
-        ├── displayManager.updateMQTTStatus()    refresh after reconnect attempt
         │
         ├── if mqttHandler.isConnected():
         │     ├── publish Grund/temp
@@ -463,14 +468,71 @@ loop()  [runs at MCU speed, no blocking]
         │     ├── publish Grund/heatStatus
         │     └── publish Grund/dehumidStatus
         │
-        └── displayManager.render()              push sprite to display
+        └── displayManager.render()                   push sprite to display
 ```
-
-**Note:** `heaterController.controlHeater()` is called twice per cycle (lines 161 and 167 in `main.cpp`). The second call is used to capture the return value for the display update. Both calls drive the relay to the same state, so there is no functional impact.
 
 ---
 
-## 11. Over-the-Air (OTA) Updates
+## 11. Fault Handling and Recovery
+
+### 11.1 BME280 Sensor Failure
+
+The BME280 is read every 10 seconds. After each read, two conditions are checked:
+
+```cpp
+bool sensorOk = (bme.lastOperateStatus == BME::eStatusOK) && !isnan(temp) && !isnan(humi);
+```
+
+| Condition | What it catches |
+|-----------|----------------|
+| `lastOperateStatus != eStatusOK` | I2C bus error, sensor not responding |
+| `isnan(temp)` / `isnan(humi)` | Corrupt floating-point value from the driver |
+
+**On failure — fail-safe behaviour:**
+
+Both controllers are driven to the safe OFF state by passing impossible sensor values that sit outside any configured threshold:
+
+```cpp
+heaterController.controlHeater(999.0f); // 999°C >> any Tset → relay OFF
+dryingController.controlDryer(0.0f);    // 0% RH << any RHset − hysteresis → relay OFF
+```
+
+A fault message is published to `Grund/error` so the condition is visible remotely:
+```
+Grund/error  →  "BME280 sensor failure"
+```
+
+The fault state is **not latched** — on the next 10-second cycle the sensor is read again. If it recovers (e.g. a transient I2C glitch), normal control resumes automatically without a reboot.
+
+**Why this matters:** Without this check, a sensor dropout would return 0 °C, causing the heater to turn on and stay on indefinitely at a remote unoccupied cabin.
+
+### 11.2 Hardware Watchdog
+
+A 30-second hardware watchdog is enabled in `setup()` using the ESP32 task watchdog:
+
+```cpp
+esp_task_wdt_init(WDT_TIMEOUT_SEC, true); // panic (reboot) on timeout
+esp_task_wdt_add(NULL);                   // watch the main task
+```
+
+`esp_task_wdt_reset()` is called as the very first line of `loop()`, before any other work. If the loop ever stalls — due to a hanging I2C call, a deadlock, or any other fault — the device reboots automatically within 30 seconds.
+
+The watchdog timeout (`WDT_TIMEOUT_SEC = 30`) is defined in `constants.hpp`.
+
+### 11.3 WiFi and MQTT Recovery
+
+See sections 5 and 6.2 for full details. In summary:
+
+| Fault | Detection | Recovery |
+|-------|-----------|----------|
+| WiFi drop | `WiFi.status() != WL_CONNECTED` detected in 10 s loop | Non-blocking reconnect attempt every 60 s, 15 s timeout per attempt |
+| MQTT drop | `client.connected()` check in `mqttHandler.loop()` | Single reconnect attempt every 10 s cycle |
+| Device power loss / crash | Broker detects missing MQTT keepalive | Broker publishes `Grund/status = "offline"` via LWT |
+| Loop hang | Watchdog fires after 30 s | ESP32 reboots, full reconnect on next boot |
+
+---
+
+## 12. Over-the-Air (OTA) Updates
 
 The firmware supports wireless updates via the **Arduino OTA** mechanism. OTA is initialized in `setup()` and serviced on every `loop()` iteration via `otaHandler.handle()` — this is the highest-priority call in `loop()` and runs outside the 10-second gate.
 

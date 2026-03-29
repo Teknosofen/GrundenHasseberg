@@ -15,7 +15,9 @@ public:
     String  getMyAPSSID();
     bool    getMyWiFiStatus();
     uint8_t getMyWiFiConStatus(); // 0 = no connection, 1 = AP, 2 = STA
-    bool    tryReconnect();       // Attempt WiFi reconnection; returns true if connected
+    bool    tryReconnect();       // Blocking reconnect (used at boot)
+    void    beginReconnect();     // Start reconnect without blocking — poll WiFi.status() afterwards
+    void    onReconnected();      // Call once WiFi.status()==WL_CONNECTED after beginReconnect()
     
 private:
     int configPin;

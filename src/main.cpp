@@ -2,6 +2,8 @@
 #include "main.hpp"
 #include "constants.hpp"
 #include <Wire.h>
+#include <esp_task_wdt.h>
+#include <time.h>
 #include "WiFiConfig.hpp"
 #include "rm67162.h"
 #include <TFT_eSPI.h>
@@ -102,62 +104,79 @@ void setup() {
 
   int wiFiStatus = wifiConfig.begin(); // Start WiFi configuration, make the begin return if it starts as AP or STA
 
+  setenv("TZ", TZ_INFO, 1); // set timezone once — used by getLocalTime() in AnalogClock
+  tzset();
+
   displayManager.updateWiFiStatus(wiFiStatus, wifiConfig);
-  // displayManager.renderWiFi();
-  if (wiFiStatus == 1) { // If in AP mode
+  if (wiFiStatus == 1) { // AP mode
     displayManager.updateActionInfo();
-    // displayManager.renderActionInfo();
   }
-  else if( wiFiStatus != 1 ) { // If not in AP mode     // not in AP mode, Start MQTT
-    displayManager.updateWiFiStatus(wiFiStatus, wifiConfig);
-    // displayManager.renderWiFi();
-    mqttHandler.checkAndInitializeEEPROM(); // Check and initialize EEPROM
+  else { // STA mode (connected or failed) — start MQTT and clock
+    mqttHandler.checkAndInitializeEEPROM();
     mqttHandler.begin();
     displayManager.updateMQTTStatus(mqttHandler);
-    // displayManager.renderMQTTStatus();
-    //2025-06-01
     displayManager.render();
     Serial.printf("WiFi Status: %d\n", wiFiStatus);
 
-    // Initialize the clock
-    myClock.begin();
-    // myClock.setRTCTime(); // Set the RTC time with the compile time clock.setRTCTime
+    myClock.begin(); // seeds clock with compile time as fallback
+    if (wiFiStatus == 2) {
+      configTime(0, 0, NTP_SERVER); // request NTP sync; overrides compile time once resolved
+      Serial.println("NTP sync requested");
+    }
     lcd_PushColors(0, 0, LCD_WIDTH, LCD_HEIGHT, (uint16_t *)sprite.getPointer());
   }
   lcd_PushColors(0, 0, LCD_WIDTH, LCD_HEIGHT, (uint16_t *)sprite.getPointer());
 
   // OTAHandler
   otaHandler.begin();
+
+  // Watchdog — reboot if loop stalls for WDT_TIMEOUT_SEC seconds
+  esp_task_wdt_init(WDT_TIMEOUT_SEC, true);
+  esp_task_wdt_add(NULL);
 }
 
 void loop() {
+esp_task_wdt_reset(); // feed watchdog every loop tick
 otaHandler.handle();
-static unsigned long lastLoopTime = 0;
-static unsigned long lastReconnectAttempt = 0;
-static unsigned long wifiConnectedSince = 0; // millis() when WiFi last came up
-static unsigned long wifiLostAt = 0;         // millis() when WiFi loss was first detected
 
-// WiFi reconnection: attempt every 60s when connection is lost (STA mode only)
-if (wifiConfig.getMyWiFiConStatus() != 1 &&
+static unsigned long lastLoopTime      = 0;
+static unsigned long lastReconnectAttempt = 0;
+static unsigned long wifiConnectedSince   = 0;
+static unsigned long wifiLostAt           = 0; // set in 10s block on first drop detection
+static bool          reconnecting         = false;
+static unsigned long reconnectStarted     = 0;
+
+// Start a non-blocking reconnect every 60 s while WiFi is down (STA mode only)
+if (!reconnecting &&
+    wifiConfig.getMyWiFiConStatus() != 1 &&
     WiFi.status() != WL_CONNECTED &&
     millis() - lastReconnectAttempt > 60000UL) {
     lastReconnectAttempt = millis();
-    if (wifiLostAt == 0) wifiLostAt = millis(); // record first moment of detected loss
-    Serial.println("WiFi disconnected - attempting reconnect...");
-    bool reconnected = wifiConfig.tryReconnect();
-    if (reconnected) {
-        unsigned long downSecs = (millis() - wifiLostAt) / 1000;
+    reconnectStarted     = millis();
+    Serial.println("WiFi: starting reconnect...");
+    wifiConfig.beginReconnect(); // returns immediately
+    reconnecting = true;
+}
+
+// Poll reconnect result — runs every CPU tick, no blocking
+if (reconnecting) {
+    if (WiFi.status() == WL_CONNECTED) {
+        reconnecting = false;
+        wifiConfig.onReconnected();
+        unsigned long downSecs = (wifiLostAt > 0) ? (millis() - wifiLostAt) / 1000 : 0;
         wifiConnectedSince = millis();
         wifiLostAt = 0;
-        Serial.printf("WiFi reconnected! Down for %lu s. SSID: %s  IP: %s\n",
+        Serial.printf("WiFi reconnected! Down for ~%lu s. SSID: %s  IP: %s\n",
             downSecs,
             wifiConfig.getMySelectedSSID().c_str(),
             wifiConfig.getMySelectedIP().c_str());
+        configTime(0, 0, NTP_SERVER); // re-sync NTP on reconnect
         otaHandler.restart();
-        mqttHandler.loop(); // reconnect MQTT immediately, don't wait for next 10 s cycle
-    } else {
-        Serial.printf("WiFi reconnect failed (down %lu s) - will retry in 60 s\n",
-            (millis() - wifiLostAt) / 1000);
+        mqttHandler.loop(); // reconnect MQTT immediately
+    } else if (millis() - reconnectStarted > 15000UL) { // 15 s timeout
+        reconnecting = false;
+        Serial.printf("WiFi reconnect timed out (down ~%lu s) - will retry in 60 s\n",
+            (wifiLostAt > 0) ? (millis() - wifiLostAt) / 1000 : 0);
     }
 }
 
@@ -167,6 +186,7 @@ if (millis() - lastLoopTime > SET_LOOP_TIME) {
     // Check WiFi status
     int wifiStatus = wifiConfig.getMyWiFiConStatus();
     if (wifiStatus == 0) {
+        if (wifiLostAt == 0 && !reconnecting) wifiLostAt = millis(); // first detection of drop
         Serial.println("WiFi: No Connection");
     } else if (wifiStatus == 1) {
         Serial.printf("WiFi: AP Mode  SSID: %s  IP: %s\n", wifiConfig.getMyAPSSID(), wifiConfig.getMyAPIP());
@@ -185,18 +205,26 @@ if (millis() - lastLoopTime > SET_LOOP_TIME) {
     float temp  = bme.getTemperature();
     float press = bme.getPressure() / 100.0;
     float humi  = bme.getHumidity();
-    displayManager.updateSensorData(temp, press, humi);
+    bool sensorOk = (bme.lastOperateStatus == BME::eStatusOK) && !isnan(temp) && !isnan(humi);
 
+    displayManager.updateSensorData(temp, press, humi);
     Serial.printf("temp: %.1f [C], P: %.1f [kPa], RH: %.1f[%%]\n", temp, press, humi);
-    
-    heaterController.controlHeater(temp);         // Do the heat and drying controll:
-    dryingController.controlDryer(humi);
 
     mqttHandler.loop(); // check connection, reconnect if needed
     displayManager.updateMQTTStatus(mqttHandler);
 
-    bool heaterOn = heaterController.controlHeater(temp);
-    bool dryerOn = dryingController.controlDryer(humi);
+    bool heaterOn, dryerOn;
+    if (!sensorOk) {
+        Serial.printf("BME280 sensor error (%d) - heater and dryer forced OFF\n", bme.lastOperateStatus);
+        heaterOn = false;
+        dryerOn  = false;
+        heaterController.controlHeater(999.0f); // above any threshold → relay OFF
+        dryingController.controlDryer(0.0f);    // below any threshold → relay OFF
+        if (mqttHandler.isConnected()) mqttHandler.publish("Grund/error", "BME280 sensor failure");
+    } else {
+        heaterOn = heaterController.controlHeater(temp);
+        dryerOn  = dryingController.controlDryer(humi);
+    }
     displayManager.updateControllerStatus(heaterOn, dryerOn);
 
     if(mqttHandler.isConnected()) {

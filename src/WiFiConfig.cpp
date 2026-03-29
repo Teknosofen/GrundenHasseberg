@@ -41,7 +41,7 @@ int WiFiConfig::begin() {
 // Other method implementations
 void WiFiConfig::setupAP() {
     WiFi.mode(WIFI_AP_STA);
-    WiFi.setTxPower(WIFI_POWER_8_5dBm);
+    WiFi.setTxPower(WIFI_TX_POWER);
     WiFi.softAP(apSSID, apPassword);
     IPAddress IP = WiFi.softAPIP();
     Serial.print("AP IP address: ");
@@ -56,7 +56,7 @@ void WiFiConfig::setupAP() {
 
 int WiFiConfig::connectToWiFi() {
     WiFi.disconnect();                                      // Reset WiFi settings
-    WiFi.setTxPower(WIFI_POWER_8_5dBm);
+    WiFi.setTxPower(WIFI_TX_POWER);
     WiFi.mode(WIFI_STA);
 
     ssidStr = EEPROM.readString(ssidAddress);               // get the stored SSID and PW
@@ -135,7 +135,7 @@ String WiFiConfig::scanNetworks(int maxMsPerChan, int channel) {
     Serial.print(" and channel: "); 
     Serial.println(channel);
     // WiFi.disconnect();
-    WiFi.setTxPower(WIFI_POWER_8_5dBm);
+    WiFi.setTxPower(WIFI_TX_POWER);
     WiFi.mode(WIFI_AP_STA);
 
     int n = WiFi.scanNetworks(false, false, channel, maxMsPerChan);
@@ -287,4 +287,18 @@ bool WiFiConfig::tryReconnect() {
     }
     Serial.println("WiFi lost - attempting reconnect...");
     return (connectToWiFi() == 2);
+}
+
+void WiFiConfig::beginReconnect() {
+    if (WiFiConStatus == 1) return; // AP mode - skip
+    WiFi.disconnect();
+    WiFi.setTxPower(WIFI_TX_POWER);
+    WiFi.mode(WIFI_STA);
+    WiFi.setHostname(apDeviceName);
+    WiFi.begin(ssidStr.c_str(), passwordStr.c_str());
+    // Returns immediately — caller must poll WiFi.status() and call onReconnected()
+}
+
+void WiFiConfig::onReconnected() {
+    WiFiConStatus = 2;
 }

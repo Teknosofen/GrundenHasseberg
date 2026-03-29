@@ -9,8 +9,8 @@ MQTTHandler::MQTTHandler(const char* broker, int port, HeaterController *heatCtr
 // Initialize the MQTT client
 void MQTTHandler::begin() {
 
-    // EEPROM.begin(512); // Initialize EEPROM with size 512 bytes
-    readSettingsFromEEPROM(); // Read settings from EEPROM
+    EEPROM.begin(512); // ensure EEPROM is ready regardless of call order
+    readSettingsFromEEPROM();
     
     client.setServer(mqttBroker, mqttPort);
     // Define the callback function for incoming messages
@@ -158,17 +158,34 @@ String MQTTHandler::handleSetDryerStatus(const String& message) {
 
 // Function to handle "getHelp" topic logic
 String MQTTHandler::handleGetHelp(const String& message) {
-    String helpTopicAck = "Can sub: " + String(setTempTopic) + ", " + String(setRHTopic) + ", " 
-                            + String(setTempHysteresisTopic) + ", " + String(setRHHysteresisTopic) + ", " 
-                            + String(getStatusTopic) + ", " + String(ackTopic) + ", " + String(getSettings) + ". "
-                            + String(getHeaterStatus) + ", " + String(getDryerStatus) + ", " 
-                            + String(setHeaterStatus) + ", " + String(setDryerStatus); // + ". "
-                            /*+ "Topics available for subscription: " */
-                            // + String(tempTopic) + ", " + String(rhTopic) + ", " + String(pBaroTopic) + ", " 
-                            // + String(heaterStatusTopic) + ", " + String(dehumidifierStatusTopic);
+    // Commands (publish to these to control the device)
+    String helpTopicAck = "COMMANDS: "
+        + String(setTempTopic) + " (1-25C), "
+        + String(setRHTopic) + " (0-100%), "
+        + String(setTempHysteresisTopic) + " (0.1-10C), "
+        + String(setRHHysteresisTopic) + " (1-20%), "
+        + String(setHeaterStatus) + " (0/1), "
+        + String(setDryerStatus) + " (0/1)";
     publish(ackTopic, helpTopicAck.c_str());
-    helpTopicAck = "can pub: " + String(tempTopic) + ", " + String(rhTopic) + ", " + String(pBaroTopic) + ", " 
-                            + String(heaterStatusTopic) + ", " + String(dehumidifierStatusTopic);
+
+    // Queries (publish to these to request current state)
+    helpTopicAck = "QUERIES: "
+        + String(getStatusTopic) + ", "
+        + String(getSettings) + ", "
+        + String(getHeaterStatus) + ", "
+        + String(getDryerStatus) + ", "
+        + String(getHelpTopic);
+    publish(ackTopic, helpTopicAck.c_str());
+
+    // Data topics (device publishes to these)
+    helpTopicAck = "DATA: "
+        + String(statusTopic) + " (online/offline), "
+        + String(uptimeTopic) + " (MQTT uptime s), "
+        + String(tempTopic) + " (C), "
+        + String(rhTopic) + " (%), "
+        + String(pBaroTopic) + " (hPa), "
+        + String(heaterStatusTopic) + " (0/1), "
+        + String(dehumidifierStatusTopic) + " (0/1)";
     return helpTopicAck;
 }
 
@@ -307,12 +324,13 @@ void MQTTHandler::writeSettingToEEPROM(int address, float value) {
 void MQTTHandler::writeSettingToEEPROM(int address, int value) {
     EEPROM.writeInt(address, value);
     EEPROM.commit();
-    Serial.printf("Int Setting written to EEPROM: %f\n", value);
+    Serial.printf("Int Setting written to EEPROM: %d\n", value);
     EEPROM.writeUInt(signatureAddress, EEPROM_SIGNATURE);       // Write signature to indicate valid data
     EEPROM.commit();
 }
 
 void MQTTHandler::checkAndInitializeEEPROM() {
+    EEPROM.begin(512); // ensure EEPROM is ready regardless of call order
     uint32_t signature = EEPROM.readUInt(signatureAddress);
     if (signature != EEPROM_SIGNATURE) {
         // EEPROM is uninitialized, store default values
