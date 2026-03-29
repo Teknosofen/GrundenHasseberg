@@ -482,31 +482,21 @@ The firmware supports wireless updates via the **Arduino OTA** mechanism. OTA is
 
 PlatformIO does not auto-discover OTA targets through a GUI port picker. The upload port must be configured explicitly, either permanently in `platformio.ini` or as a one-off on the command line.
 
-**Option A — configure `platformio.ini` (recommended for repeated use)**
+**`platformio.ini` is pre-configured with two environments:**
 
-Add these two lines to the `[env:...]` section:
+| Environment | Method | Command |
+|-------------|--------|---------|
+| `usb` (default) | USB cable via esptool | `pio run -e usb -t upload` |
+| `ota` | WiFi via espota | `pio run -e ota -t upload` |
+
+In VS Code, click the environment name in the **bottom status bar** to switch between `usb` and `ota`, then click the Upload (right-arrow) button.
+
+The OTA environment uses `upload_port = HassebergsGrund.local` (mDNS hostname). If mDNS is unreliable on your router, edit `platformio.ini` and replace the hostname with the device's IP address (shown on the display and in the Serial monitor output):
 
 ```ini
+[env:ota]
 upload_protocol = espota
-upload_port     = HassebergsGrund.local
-```
-
-`HassebergsGrund.local` resolves via mDNS on the local network. If mDNS is unreliable on your router you can use the device's IP address instead (visible on the display or in the Serial monitor):
-
-```ini
-upload_port = 192.168.x.x
-```
-
-After saving `platformio.ini`, click **Upload** in VS Code's PlatformIO toolbar (the right-arrow icon in the bottom status bar) or run:
-
-```
-pio run -t upload
-```
-
-**Option B — one-off upload from the terminal (no changes to `platformio.ini`)**
-
-```
-pio run -t upload --upload-port HassebergsGrund.local
+upload_port     = 192.168.x.x
 ```
 
 **What to expect during upload**
@@ -558,7 +548,6 @@ OTA is therefore available after both the initial boot connection and any subseq
 | `dfrobot/DFRobot_BME280` | ^1.0.2 | Temperature / humidity / pressure sensor |
 | `mathieucarbou/ESPAsyncWebServer` | ^3.4.5 | Non-blocking web server for AP config portal |
 | `knolleary/PubSubClient` | ^2.8 | MQTT client |
-| `olikraus/U8g2` | ^2.36.2 | Font rendering (pulled in by TFT_eSPI) |
 | `espressif32` (platform) | — | ESP32-S3 Arduino core and WiFi/OTA stack |
 
 ---

@@ -36,15 +36,14 @@ The device will boot in station mode and connect to your network on all subseque
 Requires [PlatformIO](https://platformio.org/).
 
 ```bash
-# Build
-pio run
+# Flash via USB (first time / default)
+pio run -e usb -t upload
 
-# Flash via USB (first time)
-pio run -t upload
-
-# Flash via OTA (once device is on the network)
-pio run -t upload --upload-port HassebergsGrund.local
+# Flash via OTA (device must be connected to WiFi)
+pio run -e ota -t upload
 ```
+
+In VS Code, switch between `usb` and `ota` by clicking the environment name in the bottom status bar, then click the Upload arrow.
 
 Serial monitor at 115 200 baud:
 ```bash
