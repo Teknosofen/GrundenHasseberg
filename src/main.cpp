@@ -107,18 +107,19 @@ void setup() {
   setenv("TZ", TZ_INFO, 1); // set timezone once — used by getLocalTime() in AnalogClock
   tzset();
 
+  myClock.begin(); // seeds clock with compile time as fallback (always, incl. AP mode)
+
   displayManager.updateWiFiStatus(wiFiStatus, wifiConfig);
   if (wiFiStatus == 1) { // AP mode
     displayManager.updateActionInfo();
   }
-  else { // STA mode (connected or failed) — start MQTT and clock
+  else { // STA mode (connected or failed) — start MQTT
     mqttHandler.checkAndInitializeEEPROM();
     mqttHandler.begin();
     displayManager.updateMQTTStatus(mqttHandler);
     displayManager.render();
     Serial.printf("WiFi Status: %d\n", wiFiStatus);
 
-    myClock.begin(); // seeds clock with compile time as fallback
     if (wiFiStatus == 2) {
       configTime(0, 0, NTP_SERVER); // request NTP sync; overrides compile time once resolved
       Serial.println("NTP sync requested");
@@ -225,6 +226,7 @@ if (millis() - lastLoopTime > SET_LOOP_TIME) {
         heaterOn = heaterController.controlHeater(temp);
         dryerOn  = dryingController.controlDryer(humi);
     }
+    displayManager.updateSensorFault(!sensorOk);
     displayManager.updateControllerStatus(heaterOn, dryerOn);
 
     if(mqttHandler.isConnected()) {

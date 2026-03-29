@@ -57,6 +57,10 @@ void DisplayManager::updateControllerStatus(bool heaterOn, bool dryerOn) {
     this->dryerOn = dryerOn;
 }
 
+void DisplayManager::updateSensorFault(bool fault) {
+    this->sensorFault = fault;
+}
+
 void DisplayManager::render() {
     spr->fillSprite(TFT_BLACK);
     renderHeader();
@@ -116,9 +120,15 @@ void DisplayManager::renderSensorData() {
 }
 
 void DisplayManager::renderControllerStatus() {
-    spr->setTextColor(TFT_RED, TFT_BLACK);
-    spr->drawString(heaterOn ? "Heater: ON" : "Heater: OFF", firstColStart, sixthLine, 4);
-    spr->setTextColor(TFT_SKYBLUE, TFT_BLACK);
-    spr->drawString(dryerOn ? "Dryer: ON" : "Dryer: OFF", firstColStart, seventhLine, 4);
+    if (sensorFault) {
+        spr->setTextColor(TFT_RED, TFT_BLACK);
+        spr->drawString("SENSOR ERR", firstColStart, sixthLine, 4);
+        spr->drawString("Relays OFF", firstColStart, seventhLine, 4);
+    } else {
+        spr->setTextColor(TFT_RED, TFT_BLACK);
+        spr->drawString(heaterOn ? "Heater: ON" : "Heater: OFF", firstColStart, sixthLine, 4);
+        spr->setTextColor(TFT_SKYBLUE, TFT_BLACK);
+        spr->drawString(dryerOn ? "Dryer: ON" : "Dryer: OFF", firstColStart, seventhLine, 4);
+    }
     spr->setTextColor(TFT_WHITE, TFT_BLACK);
 }

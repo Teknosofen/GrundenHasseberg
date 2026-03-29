@@ -18,6 +18,7 @@ public:
     void updateActionInfo();
     void updateSensorData(float temperature, float pressure, float humidity);
     void updateControllerStatus(bool heaterOn, bool dryerOn);
+    void updateSensorFault(bool fault);
     void renderHeader();
     void renderWiFi();
     void renderMQTTStatus();
@@ -56,6 +57,7 @@ private:
 
     bool heaterOn;
     bool dryerOn;
+    bool sensorFault = false;
 
     int wifiStatus;
     String wifiDetailsRow1;

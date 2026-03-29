@@ -97,8 +97,6 @@ int WiFiConfig::connectToWiFi() {
 }
 
 void WiFiConfig::handleRoot(AsyncWebServerRequest* request) {
-    // debug
-    Serial.println("Yngve - dags att jobba!!!   enter handle root");
     String html = "<html><body><h1>Configure WiFi</h1>";
     html += "<b1>Teknosofen</b1>";
     html += "<form method='POST' action='/save'>";

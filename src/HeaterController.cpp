@@ -11,7 +11,7 @@ HeaterController::HeaterController(float initialTset, float initialHysteresis, i
 // Function to initialize the GPIO pin
 void HeaterController::initGpioPin(int pin) {
     pinMode(pin, OUTPUT); // Set the pin as output
-    digitalWrite(pin, LOW); // Ensure the heater is off initially
+    digitalWrite(pin, RELAY_OFF); // Ensure the heater is off initially
 }
 
 // Function to set the GPIO pin state
