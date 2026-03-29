@@ -19,10 +19,11 @@
 8. [Display System](#8-display-system)
 9. [EEPROM Layout](#9-eeprom-layout)
 10. [Main Loop and Task Scheduling](#10-main-loop-and-task-scheduling)
-11. [Over-the-Air (OTA) Updates](#11-over-the-air-ota-updates)
-12. [GPIO Pin Assignment](#12-gpio-pin-assignment)
-13. [Library Dependencies](#13-library-dependencies)
-14. [Version History](#14-version-history)
+11. [Fault Handling and Recovery](#11-fault-handling-and-recovery)
+12. [Over-the-Air (OTA) Updates](#12-over-the-air-ota-updates)
+13. [GPIO Pin Assignment](#13-gpio-pin-assignment)
+14. [Library Dependencies](#14-library-dependencies)
+15. [Version History](#15-version-history)
 
 ---
 
@@ -589,7 +590,7 @@ OTA is therefore available after both the initial boot connection and any subseq
 
 ---
 
-## 12. GPIO Pin Assignment
+## 13. GPIO Pin Assignment
 
 | GPIO | Function | Direction | Notes |
 |------|----------|-----------|-------|
@@ -604,7 +605,7 @@ OTA is therefore available after both the initial boot connection and any subseq
 
 ---
 
-## 13. Library Dependencies
+## 14. Library Dependencies
 
 | Library | Version | Purpose |
 |---------|---------|---------|
@@ -616,7 +617,7 @@ OTA is therefore available after both the initial boot connection and any subseq
 
 ---
 
-## 14. Version History
+## 15. Version History
 
 | Version | Date | Commit | Description |
 |---------|------|--------|-------------|
